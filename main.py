@@ -15,9 +15,14 @@ def main():
     print("Select Dataset")
     print("1. Sample dataset (24 tweets)")
     print("2. Boston dataset (1000 tweets)")
-    choice = input("Enter choice (1 or 2): ").strip()
+    print("3. Election 2024 dataset")
+    choice = input("Enter choice (1, 2 or 3): ").strip()
 
-    if choice == "2":
+    if choice == "3":
+        df = pd.read_csv("data/election_tweets.csv")
+        min_frequency = 20
+        historical_mode = False
+    elif choice == "2":
         df = pd.read_csv("data/boston_tweets.csv")
         min_frequency = 10
         historical_mode = True
@@ -40,7 +45,7 @@ def main():
 
     bursty = find_bursty_segments(
         segment_index,
-        min_frequency=2
+        min_frequency=min_frequency if choice == "3" else 2
     )
 
     if historical_mode and not bursty:
@@ -64,6 +69,14 @@ def main():
             if not segment.startswith("#")
         }
         score_label = "Burst Score"
+    max_candidates = 2000
+    candidates = dict(
+        sorted(
+            candidates.items(),
+            key=lambda item: item[1]["score"],
+            reverse=True
+        )[:max_candidates]
+    )
 
     segments = list(candidates.keys())
     wikipedia_segments = filter_wikipedia_segments(segments)

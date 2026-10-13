@@ -2,3 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
+.idea/
+data/*.csv.gz
+data/election_tweets.csv
+data/*.cache.json
