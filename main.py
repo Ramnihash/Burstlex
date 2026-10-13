@@ -1,6 +1,7 @@
 import pandas as pd
 from collections import Counter
 
+from optimization.event_optimizer import optimize_events
 from segmentation.segmenter import segment_tweet
 from indexing.segment_index import build_segment_index
 from burst_detection.bursty_segments import find_bursty_segments
@@ -9,6 +10,9 @@ from summarization.event_summary import summarize_event
 from segmentation.wikipedia_filter import filter_wikipedia_segments
 from evaluation import evaluate_events, count_event_tweets
 from novelty.novelty_detector import analyze_event_novelty
+from preprocessing.lexer import lex_tweet
+from segmentation.adaptive_symbol_table import AdaptiveSymbolTable
+from segmentation.wikipedia_filter import WIKIPEDIA_TERMS
 
 
 def main():
@@ -34,8 +38,12 @@ def main():
     tweet_segments = []
     segment_counts = Counter()
 
+    lexical_errors = Counter()
+
     for _, row in df.iterrows():
-        segments = segment_tweet(row["text"])
+        lexed = lex_tweet(row["text"])
+        lexical_errors.update(lexed.errors)
+        segments = segment_tweet(lexed.text)
         segment_counts.update(segments)
         tweet_segments.append(
             (row["tweet_id"], row["timestamp"], segments)
@@ -79,8 +87,12 @@ def main():
     )
 
     segments = list(candidates.keys())
-    wikipedia_segments = filter_wikipedia_segments(segments)
+    symbol_table = AdaptiveSymbolTable()
 
+    if not historical_mode:
+        symbol_table.learn(segments, segment_index, tweet_segments)
+
+    wikipedia_segments = symbol_table.filter_segments(segments)
     if wikipedia_segments:
         segments = wikipedia_segments
 
@@ -122,9 +134,36 @@ def main():
         reverse=True
     )
 
+    optimizer_info = None
+
+    if not historical_mode:
+        events, optimizer_info = optimize_events(
+            events,
+            segment_index,
+            tweet_segments
+        )
+
     print(f"\nDetection Mode: {detection_mode}")
+    print("\nAdaptive Symbol Table")
+    print("=" * 50)
+    print("Wikipedia titles loaded:", len(WIKIPEDIA_TERMS))
+    print("Emerging phrases learned:", len(symbol_table.learned))
+    print(
+        "Examples:",
+        ", ".join(sorted(symbol_table.learned)[:15])
+    )
+    print("\nLexical Errors Recovered")
+    print("=" * 50)
+    for error_type, count in lexical_errors.most_common():
+        print(f"{error_type}: {count}")
+    print("Total:", sum(lexical_errors.values()))
     print("\nDetected Events")
     print("=" * 50)
+
+    if optimizer_info:
+        print("Events before optimization:", optimizer_info["before"])
+        print("After merging duplicates:", optimizer_info["after_merge"])
+        print("After removing noise:", optimizer_info["after_noise"])
 
     for i, event in enumerate(events, 1):
         print(f"\nEvent {i}")
@@ -150,9 +189,12 @@ def main():
             for event in events
         }
 
+        dataset_end = pd.to_datetime(df["timestamp"]).max().to_pydatetime()
+
         novelty_results = analyze_event_novelty(
             df.to_dict("records"),
-            event_segments
+            event_segments,
+            now=dataset_end
         )
 
         for event_name, details in novelty_results.items():
@@ -206,22 +248,6 @@ def main():
         round(evaluation["average_burst_score"], 2)
     )
     print("Highest Burst Score:", evaluation["highest_burst_score"])
-
-    if historical_mode and not bursty:
-        average_score = (
-            sum(event["score"] for event in events) / len(events)
-            if events else 0
-        )
-        print("Average Frequency Score:", round(average_score, 2))
-        print(
-            "Temporal Burst Scores: Unavailable because "
-            "timestamps are unknown"
-        )
-    else:
-        print(
-            "Average Burst Score:",
-            round(evaluation["average_burst_score"], 2)
-        )
 
 
 if __name__ == "__main__":

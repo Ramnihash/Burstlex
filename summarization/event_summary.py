@@ -15,7 +15,7 @@ NOISE_TERMS = {
 
 
 def clean_phrase(phrase):
-    words = re.findall(r"[a-z]+", phrase.lower())
+    words = re.findall(r"[a-z0-9]+", phrase.lower())
     words = [word for word in words if word not in NOISE_TERMS]
     return " ".join(words)
 
