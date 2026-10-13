@@ -1,3 +1,4 @@
+import html
 import sys
 from pathlib import Path
 
@@ -21,9 +22,118 @@ st.set_page_config(
 )
 
 
-@st.cache_data(show_spinner=False)
-def process(data, min_frequency):
-    return run_pipeline(data, min_frequency)
+TIMELINE_CSS = """
+<style>
+.bx{--bx-accent:#3b82f6;--bx-line:rgba(128,128,128,.28);--bx-surface:rgba(128,128,128,.07);
+font-size:16px;line-height:1.5;max-width:900px}
+.bx-step{display:grid;grid-template-columns:44px 1fr;gap:0 16px}
+.bx-rail{display:flex;flex-direction:column;align-items:center}
+.bx-num{width:36px;height:36px;border-radius:50%;background:var(--bx-accent);color:#fff;
+display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;flex:none}
+.bx-num svg{width:18px;height:18px}
+.bx-stem{width:2px;flex:1;background:var(--bx-line);margin:4px 0}
+.bx-step:last-child .bx-stem{display:none}
+.bx-card{border:1px solid var(--bx-line);border-radius:12px;padding:14px 18px;
+margin-bottom:16px;background:var(--bx-surface);min-width:0}
+.bx-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.bx-name{font-weight:600;font-size:17px}
+.bx-time{font-size:14px;opacity:.75;font-variant-numeric:tabular-nums}
+.bx-metric{display:flex;align-items:baseline;gap:8px;margin:6px 0 2px}
+.bx-value{font-size:28px;font-weight:700;color:var(--bx-accent);font-variant-numeric:tabular-nums}
+.bx-label{font-size:15px;opacity:.8}
+.bx-sum{font-size:14px;opacity:.75;margin-bottom:8px}
+.bx-bar{height:6px;border-radius:3px;background:var(--bx-line);overflow:hidden}
+.bx-bar i{display:block;height:100%;background:var(--bx-accent);border-radius:3px}
+.bx-sub{font-size:13px;opacity:.7;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.bx-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;
+padding:8px 12px;border-radius:8px;border:1px solid var(--bx-line);margin-bottom:6px;
+white-space:pre-wrap;overflow-wrap:anywhere}
+.bx-tag{opacity:.65;font-size:12px;display:block;margin-bottom:2px}
+.bx-chips{display:flex;flex-wrap:wrap;gap:6px}
+.bx-chip{border:1px solid var(--bx-line);border-radius:999px;padding:2px 12px;font-size:14px;
+background:var(--bx-surface)}
+</style>
+"""
+
+def chips(items):
+    return '<div class="bx-chips">' + "".join(
+        f'<span class="bx-chip">{html.escape(str(item))}</span>' for item in items
+    ) + "</div>"
+
+
+def stage_extra(stage):
+    details = stage["details"] or {}
+    name = stage["name"]
+
+    if name == "Lexer" and details.get("example"):
+        example = details["example"]
+        return (
+            '<div class="bx-sub">Before and after on a real tweet</div>'
+            f'<div class="bx-mono"><span class="bx-tag">Raw</span>{html.escape(example["before"])}</div>'
+            f'<div class="bx-mono"><span class="bx-tag">Cleaned</span>{html.escape(example["after"])}</div>'
+        )
+
+    if name == "Segmentation" and details.get("example"):
+        return '<div class="bx-sub">Segments from the first tweet</div>' + chips(details["example"])
+
+    if name == "Adaptive symbol table" and details.get("learned"):
+        return '<div class="bx-sub">Emerging phrases learned</div>' + chips(details["learned"][:20])
+
+    return ""
+
+
+def pipeline_timeline(stages):
+    longest = max((stage["seconds"] for stage in stages), default=0) or 1
+    parts = [TIMELINE_CSS, '<div class="bx">']
+
+    for number, stage in enumerate(stages, 1):
+        share = max(stage["seconds"] / longest * 100, 2)
+        parts.append(
+            f'<div class="bx-step"><div class="bx-rail">'
+            f'<div class="bx-num" title="Stage {number} complete">{number}</div>'
+            f'<div class="bx-stem"></div></div>'
+            f'<div class="bx-card">'
+            f'<div class="bx-head"><span class="bx-name">{html.escape(stage["name"])}</span>'
+            f'<span class="bx-time">{stage["seconds"]:.1f}s</span></div>'
+            f'<div class="bx-metric"><span class="bx-value">{html.escape(str(stage["headline"]))}</span>'
+            f'<span class="bx-label">{html.escape(stage["label"])}</span></div>'
+            f'<div class="bx-sum">{html.escape(stage["summary"])}</div>'
+            f'<div class="bx-bar" role="img" aria-label="{stage["seconds"]:.1f} seconds">'
+            f'<i style="width:{share:.0f}%"></i></div>'
+            f'{stage_extra(stage)}</div></div>'
+        )
+
+    parts.append("</div>")
+    return "".join(parts)
+
+
+STAGE_COUNT = 10
+
+
+def run_with_tracker(data, min_frequency):
+    done = []
+
+    with st.status("Running pipeline...", expanded=True) as status:
+        bar = st.progress(0.0, text="Starting")
+
+        def show(record):
+            done.append(record)
+            st.write(
+                f"**{len(done)}. {record['name']}** · "
+                f"{record['headline']} {record['label']} · "
+                f"{record['seconds']:.1f}s"
+            )
+            bar.progress(
+                min(len(done) / STAGE_COUNT, 1.0),
+                text=f"{len(done)} of {STAGE_COUNT} stages complete"
+            )
+
+        outcome = run_pipeline(data, min_frequency, on_stage=show)
+        status.update(
+            label="Pipeline complete", state="complete", expanded=False
+        )
+
+    return outcome
 
 
 def events_table(events, novelty):
@@ -85,9 +195,7 @@ if missing:
     st.stop()
 
 if run:
-    with st.spinner("Running lexer, segmentation, clustering and optimizer..."):
-        st.session_state["result"] = process(data, int(min_frequency))
-        st.session_state["tweets"] = len(data)
+    st.session_state["result"] = run_with_tracker(data, int(min_frequency))
 
 result = st.session_state.get("result")
 
@@ -104,9 +212,18 @@ optimizer_info = result["optimizer_info"]
 symbol_table = result["symbol_table"]
 lexical_errors = result["lexical_errors"]
 
-overview_tab, events_tab, passes_tab = st.tabs(
-    ["Overview", "Events", "Compiler passes"]
+pipeline_tab, overview_tab, events_tab, passes_tab = st.tabs(
+    ["Pipeline", "Overview", "Events", "Compiler passes"]
 )
+
+with pipeline_tab:
+    stages = result["stages"]
+    total = sum(stage["seconds"] for stage in stages)
+
+    st.caption(
+        f"{len(stages)} stages, {total:.1f}s in total. Each stage feeds the next."
+    )
+    st.html(pipeline_timeline(stages))
 
 with overview_tab:
     c1, c2, c3, c4 = st.columns(4)
