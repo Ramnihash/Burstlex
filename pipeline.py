@@ -212,13 +212,18 @@ def run_pipeline(df, min_frequency=2, historical_mode=False,
     optimizer_info = None
 
     if not historical_mode:
+        tweet_users = (
+            dict(zip(df["tweet_id"], df["user_id"]))
+            if "user_id" in df.columns else None
+        )
         events, optimizer_info = optimize_events(
-            events, segment_index, tweet_segments
+            events, segment_index, tweet_segments, tweet_users=tweet_users
         )
         stage(
             "Event optimizer",
             f"{optimizer_info['before']} events, "
             f"{optimizer_info['after_merge']} after merging duplicates, "
+            f"{optimizer_info['after_spam']} after removing spam, "
             f"{optimizer_info['after_noise']} after removing noise",
             f"{optimizer_info['after_noise']:,}",
             "events kept",

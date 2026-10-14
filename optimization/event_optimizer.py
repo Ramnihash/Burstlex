@@ -101,16 +101,35 @@ def drop_noise_events(events, segment_index, tweet_segments, min_lift=1.25):
     return kept, dropped
 
 
+def drop_spam_events(events, segment_index, tweet_users,
+                     min_tweets=20, max_user_share=0.4):
+    if not tweet_users:
+        return list(events), []
+    kept, dropped = [], []
+    for event in events:
+        ids = event_tweet_ids(event, segment_index)
+        users = Counter(tweet_users[i] for i in ids if i in tweet_users)
+        total = sum(users.values())
+        if total >= min_tweets and max(users.values()) / total >= max_user_share:
+            dropped.append(event)
+        else:
+            kept.append(event)
+    return kept, dropped
+
+
 def optimize_events(events, segment_index, tweet_segments,
-                    overlap=0.7, min_lift=1.25):
+                    overlap=0.7, min_lift=1.25, tweet_users=None):
     merged = merge_duplicate_events(events, segment_index, overlap)
+    unspammed, spam = drop_spam_events(merged, segment_index, tweet_users)
     kept, dropped = drop_noise_events(
-        merged, segment_index, tweet_segments, min_lift
+        unspammed, segment_index, tweet_segments, min_lift
     )
     kept.sort(key=lambda e: (e["frequency"], e["score"]), reverse=True)
     return kept, {
         "before": len(events),
         "after_merge": len(merged),
+        "after_spam": len(unspammed),
         "after_noise": len(kept),
+        "spam": [e["summary"] for e in spam],
         "dropped": [e["summary"] for e in dropped],
     }

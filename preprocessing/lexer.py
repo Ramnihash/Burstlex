@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 RETWEET_PREFIX = re.compile(r"^\s*rt\s+@\w+:?\s*", re.IGNORECASE)
 ELONGATED = re.compile(r"([a-zA-Z])\1{2,}")
+CASHTAG = re.compile(r"(?<!\w)\$[A-Za-z][A-Za-z0-9]{1,9}\b")
 SPLIT_HASHTAG = re.compile(r"#\s+(?=\w)")
 SYMBOLS = re.compile(r"[^\w\s#@.,!?'\"/:;&%$()\-]", re.UNICODE)
 REPEATED_PUNCT = re.compile(r"([!?.,])\1{1,}")
@@ -67,6 +68,9 @@ def lex_tweet(text):
 
     text, count = ELONGATED.subn(r"\1", text)
     errors["elongated_word"] += count
+
+    text, count = CASHTAG.subn(" ", text)
+    errors["cashtag"] += count
 
     text, count = PROFANITY.subn(" ", text)
     errors["profanity"] += count
