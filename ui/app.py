@@ -12,7 +12,7 @@ from pipeline import run_pipeline
 
 BUNDLED = {
     "Election 2024 (64,044 tweets)": ("data/election_tweets.csv", 20),
-    "Sample (24 tweets)": ("data/tweets.csv", 2),
+    "Sample (1,000 tweets)": ("data/tweets.csv", 20),
 }
 
 st.set_page_config(
@@ -175,7 +175,7 @@ with st.sidebar:
 
     min_frequency = st.slider(
         "Minimum segment frequency",
-        2, 100, default_frequency,
+        1, 100, default_frequency,
         help="Higher values keep only segments that appear in more tweets."
     )
 

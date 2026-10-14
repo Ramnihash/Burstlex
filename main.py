@@ -5,7 +5,7 @@ from pipeline import run_pipeline
 
 def main():
     print("Select Dataset")
-    print("1. Sample dataset (24 tweets)")
+    print("1. Sample dataset (1000 tweets)")
     print("2. Boston dataset (1000 tweets)")
     print("3. Election 2024 dataset")
     choice = input("Enter choice (1, 2 or 3): ").strip()
@@ -20,7 +20,7 @@ def main():
         historical_mode = True
     else:
         df = pd.read_csv("data/tweets.csv")
-        min_frequency = 2
+        min_frequency = 20
         historical_mode = False
 
     result = run_pipeline(df, min_frequency, historical_mode)
