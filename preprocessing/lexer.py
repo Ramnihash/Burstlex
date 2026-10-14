@@ -1,6 +1,7 @@
 import html
 import re
 import unicodedata
+from pathlib import Path
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -11,6 +12,26 @@ SYMBOLS = re.compile(r"[^\w\s#@.,!?'\"/:;&%$()\-]", re.UNICODE)
 REPEATED_PUNCT = re.compile(r"([!?.,])\1{1,}")
 SPACES = re.compile(r"\s+")
 CURLY_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+
+
+PROFANITY_FILE = Path(__file__).with_name("profanity.txt")
+
+
+def load_profanity(path=PROFANITY_FILE):
+    words = [
+        line.strip().lower()
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    words.sort(key=len, reverse=True)
+
+    return re.compile(
+        r"(?<!\w)(?:" + "|".join(re.escape(word) for word in words) + r")(?:s|es)?(?!\w)",
+        re.IGNORECASE
+    )
+
+
+PROFANITY = load_profanity()
 
 
 @dataclass
@@ -46,6 +67,9 @@ def lex_tweet(text):
 
     text, count = ELONGATED.subn(r"\1", text)
     errors["elongated_word"] += count
+
+    text, count = PROFANITY.subn(" ", text)
+    errors["profanity"] += count
 
     text, count = SYMBOLS.subn(" ", text)
     errors["symbol_or_emoji"] += count
