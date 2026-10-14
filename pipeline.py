@@ -265,6 +265,13 @@ def run_pipeline(df, min_frequency=2, historical_mode=False,
         f"{evaluation['event_coverage'] * 100:.1f}% of tweets covered",
         f"{evaluation['event_coverage'] * 100:.1f}%",
         "tweets covered",
+        {
+            "note": (
+                "Coverage depends on the minimum segment frequency "
+                f"(currently {min_frequency}). A higher value keeps fewer "
+                "segments and lowers coverage; a lower value raises it."
+            )
+        }
     )
 
     return {

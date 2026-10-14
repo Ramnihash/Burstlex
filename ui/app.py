@@ -76,6 +76,9 @@ def stage_extra(stage):
     if name == "Segmentation" and details.get("example"):
         return '<div class="bx-sub">Segments from the first tweet</div>' + chips(details["example"])
 
+    if name == "Evaluation" and details.get("note"):
+        return f'<div class="bx-sub">Note</div><div class="bx-sum">{html.escape(details["note"])}</div>'
+
     if name == "Adaptive symbol table" and details.get("learned"):
         return '<div class="bx-sub">Emerging phrases learned</div>' + chips(details["learned"][:20])
 
@@ -231,6 +234,9 @@ with overview_tab:
     c2.metric("Events", evaluation["total_events"])
     c3.metric("Event coverage", f"{evaluation['event_coverage'] * 100:.1f}%")
     c4.metric("Avg burst score", round(evaluation["average_burst_score"], 2))
+    st.caption(
+        "Event coverage depends on the minimum segment frequency set in the sidebar."
+    )
 
     st.subheader("Top events by tweets")
 
