@@ -55,7 +55,7 @@ def lex_tweet(text):
         errors["curly_quote"] += 1
     text = straightened
 
-    unescaped = html.unescape(text)
+    unescaped = html.unescape(html.unescape(text))
     if unescaped != text:
         errors["html_entity"] += 1
     text = unescaped

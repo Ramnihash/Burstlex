@@ -8,9 +8,14 @@ def main():
     print("1. Sample dataset (1000 tweets)")
     print("2. Boston dataset (1000 tweets)")
     print("3. Election 2024 dataset")
-    choice = input("Enter choice (1, 2 or 3): ").strip()
+    print("4. Multi-event X 2025 dataset (100,000 tweets)")
+    choice = input("Enter choice (1, 2, 3 or 4): ").strip()
 
-    if choice == "3":
+    if choice == "4":
+        df = pd.read_csv("data/xdata_tweets.csv")
+        min_frequency = 30
+        historical_mode = False
+    elif choice == "3":
         df = pd.read_csv("data/election_tweets.csv")
         min_frequency = 20
         historical_mode = False

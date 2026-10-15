@@ -12,6 +12,7 @@ from pipeline import run_pipeline
 
 BUNDLED = {
     "Election 2024 (64,044 tweets)": ("data/election_tweets.csv", 20),
+    "Multi-event X 2025 (100,000 tweets)": ("data/xdata_tweets.csv", 30),
     "Sample (1,000 tweets)": ("data/tweets.csv", 20),
 }
 

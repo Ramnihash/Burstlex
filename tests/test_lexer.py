@@ -36,3 +36,15 @@ def test_clean_text_has_no_errors():
 
 def test_none_input():
     assert lex_tweet(None).text == ""
+
+
+def test_double_escaped_entity_is_decoded():
+    result = lex_tweet("I&amp;#39;ve tried it &amp;amp; it works")
+    assert result.text == "I've tried it & it works"
+    assert result.errors["html_entity"] == 1
+
+
+def test_plain_text_has_no_entity_error():
+    result = lex_tweet("nothing to decode here")
+    assert result.text == "nothing to decode here"
+    assert result.errors["html_entity"] == 0
