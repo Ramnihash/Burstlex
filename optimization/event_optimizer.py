@@ -117,6 +117,64 @@ def drop_spam_events(events, segment_index, tweet_users,
     return kept, dropped
 
 
+def focus_score(event, segment_index, tweet_day):
+    ids = event_tweet_ids(event, segment_index)
+    counts = Counter(tweet_day[i] for i in ids if i in tweet_day)
+    size = sum(counts.values())
+    peak_share = max(counts.values()) / size if size else 0.0
+    words = len(event["summary"].split())
+    return event["frequency"] * peak_share ** 2 * (1 + 0.25 * (words - 1))
+
+
+def describe_events(events, segment_index, tweet_segments,
+                    tweet_texts=None, tweet_users=None, examples=2):
+    tweet_day = {tid: day_of(ts) for tid, ts, _ in tweet_segments}
+    day_totals = Counter(tweet_day.values())
+    total = len(tweet_day)
+    rows = []
+
+    for rank, event in enumerate(events, 1):
+        ids = event_tweet_ids(event, segment_index)
+        counts = Counter(tweet_day[i] for i in ids if i in tweet_day)
+        peak_day, peak_count = counts.most_common(1)[0] if counts else ("", 0)
+        size = sum(counts.values())
+
+        user_share = ""
+        if tweet_users:
+            users = Counter(tweet_users[i] for i in ids if i in tweet_users)
+            if users:
+                user_share = round(max(users.values()) / sum(users.values()), 3)
+
+        samples = ""
+        if tweet_texts:
+            picked = sorted(ids)[:examples]
+            samples = " || ".join(
+                str(tweet_texts.get(i, ""))[:140].replace("\n", " ")
+                for i in picked
+            )
+
+        lift = ""
+        if len(day_totals) >= 2 and ids:
+            lift = round(day_lift(ids, tweet_day, day_totals, total), 2)
+
+        rows.append({
+            "rank": rank,
+            "event": event["summary"],
+            "frequency": event["frequency"],
+            "burst_score": round(event["score"], 2),
+            "lift": lift,
+            "peak_day": peak_day,
+            "peak_share": round(peak_count / size, 3) if size else "",
+            "top_user_share": user_share,
+            "days": "; ".join(f"{d}:{counts[d]}" for d in sorted(counts)),
+            "example_tweets": samples,
+            "is_event": "",
+            "duplicate_of": "",
+        })
+
+    return rows
+
+
 def optimize_events(events, segment_index, tweet_segments,
                     overlap=0.7, min_lift=1.25, tweet_users=None):
     merged = merge_duplicate_events(events, segment_index, overlap)
@@ -124,7 +182,10 @@ def optimize_events(events, segment_index, tweet_segments,
     kept, dropped = drop_noise_events(
         unspammed, segment_index, tweet_segments, min_lift
     )
-    kept.sort(key=lambda e: (e["frequency"], e["score"]), reverse=True)
+    tweet_day = {tid: day_of(ts) for tid, ts, _ in tweet_segments}
+    for event in kept:
+        event["focus"] = focus_score(event, segment_index, tweet_day)
+    kept.sort(key=lambda e: (e["focus"], e["frequency"]), reverse=True)
     return kept, {
         "before": len(events),
         "after_merge": len(merged),

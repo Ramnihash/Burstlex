@@ -8,7 +8,7 @@ from clustering.event_cluster import cluster_segments
 from evaluation import count_event_tweets, evaluate_events
 from indexing.segment_index import build_segment_index
 from novelty.novelty_detector import analyze_event_novelty
-from optimization.event_optimizer import optimize_events
+from optimization.event_optimizer import describe_events, optimize_events
 from preprocessing.lexer import lex_tweet
 from segmentation.adaptive_symbol_table import AdaptiveSymbolTable
 from segmentation.segmenter import segment_tweet
@@ -236,6 +236,17 @@ def run_pipeline(df, min_frequency=2, historical_mode=False,
             "skipped"
         )
 
+    event_rows = describe_events(
+        events,
+        segment_index,
+        tweet_segments,
+        dict(zip(df["tweet_id"], df["text"])),
+        (
+            dict(zip(df["tweet_id"], df["user_id"]))
+            if "user_id" in df.columns else None
+        )
+    )
+
     novelty = None
 
     if not historical_mode:
@@ -285,6 +296,7 @@ def run_pipeline(df, min_frequency=2, historical_mode=False,
         "evaluation": evaluation,
         "novelty": novelty,
         "optimizer_info": optimizer_info,
+        "event_rows": event_rows,
         "lexical_errors": lexical_errors,
         "symbol_table": symbol_table,
         "detection_mode": detection_mode,

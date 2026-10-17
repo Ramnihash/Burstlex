@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 
 from pipeline import run_pipeline
@@ -106,6 +108,14 @@ def main():
     else:
         print("Average Burst Score:", round(evaluation["average_burst_score"], 2))
         print("Highest Burst Score:", evaluation["highest_burst_score"])
+
+    name = {"2": "boston", "3": "election", "4": "xdata"}.get(choice, "sample")
+    export_path = f"output/events_{name}.csv"
+    os.makedirs("output", exist_ok=True)
+    pd.DataFrame(result["event_rows"]).to_csv(
+        export_path, index=False, encoding="utf-8-sig"
+    )
+    print("\nEvents exported to:", export_path)
 
 
 if __name__ == "__main__":

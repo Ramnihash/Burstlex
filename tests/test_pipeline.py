@@ -12,7 +12,7 @@ def test_pipeline_returns_expected_sections():
     result = run_pipeline(df, min_frequency=2)
 
     for key in (
-        "events", "evaluation", "novelty", "optimizer_info",
+        "events", "evaluation", "novelty", "optimizer_info","event_rows",
         "lexical_errors", "symbol_table", "detection_mode", "score_label"
     ):
         assert key in result
