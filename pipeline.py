@@ -32,6 +32,25 @@ def dataset_end_time(df):
         return None
 
 
+def compact_days(df):
+    try:
+        stamps = pd.to_datetime(df["timestamp"])
+        days = stamps.dt.normalize()
+        ordered = sorted(days.unique())
+        base = ordered[0]
+        mapping = {
+            day: base + pd.Timedelta(days=i) for i, day in enumerate(ordered)
+        }
+        shifted = days.map(mapping) + (stamps - days)
+    except (ValueError, TypeError, KeyError, AttributeError, IndexError):
+        return df
+    compact = df.copy()
+    if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        shifted = shifted.dt.strftime("%Y-%m-%d %H:%M:%S")
+    compact["timestamp"] = shifted
+    return compact
+
+
 def run_pipeline(df, min_frequency=2, historical_mode=False,
                  max_candidates=2000, on_stage=None):
     stages = []
@@ -250,10 +269,11 @@ def run_pipeline(df, min_frequency=2, historical_mode=False,
     novelty = None
 
     if not historical_mode:
+        novelty_df = compact_days(df)
         novelty = analyze_event_novelty(
-            df.to_dict("records"),
+            novelty_df.to_dict("records"),
             {event["summary"]: event["segments"] for event in events},
-            now=dataset_end_time(df)
+            now=dataset_end_time(novelty_df)
         )
 
     stage(
