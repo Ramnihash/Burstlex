@@ -8,6 +8,13 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
+import nltk
+for package in ("stopwords", "wordnet", "punkt", "punkt_tab", "omw-1.4"):
+    try:
+        nltk.download(package, quiet=True)
+    except Exception:
+        pass
+
 from pipeline import run_pipeline
 
 BUNDLED = {
