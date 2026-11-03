@@ -165,7 +165,7 @@ with st.sidebar:
     st.title("Burstlex")
     st.caption("Event detection from tweets")
 
-    source = st.radio("Data source", ["Bundled dataset", "Upload CSV"])
+    source = st.radio("Data source", ["Bundled dataset", "Upload CSV"], index=1)
 
     data = None
     default_frequency = 20
